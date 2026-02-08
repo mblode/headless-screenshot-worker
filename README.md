@@ -1,19 +1,19 @@
 # Screenshot Worker
 
-A Cloudflare Worker that generates, caches, and serves website screenshots using [Headless Render API](https://headless-render-api.com) and Cloudflare Images.
+A Cloudflare Worker that generates, caches, and serves website screenshots using [Headless Render API](https://headless-render-api.com) and [Cloudflare Images](https://developers.cloudflare.com/images/).
 
 ## How it works
 
-1. A request comes in for a specific route (e.g., `/opengraph/:slug`)
-2. The worker checks Cloudflare Images for a cached version
-3. If no cache exists (or `invalidate` is set), it requests a screenshot from Headless Render API
+1. Request comes in (e.g., `GET /about`)
+2. The worker checks Cloudflare Images for a cached screenshot
+3. On cache miss, it takes a screenshot via Headless Render API. Pass `?invalidate=true` to force a fresh screenshot.
 4. The screenshot is uploaded to Cloudflare Images for future requests
-5. The image is served with the requested dimensions, format, and quality
+5. The image is returned as JPEG
 
 ## Prerequisites
 
 - Node.js 22+
-- Cloudflare account with Images enabled
+- Cloudflare account with [Images](https://developers.cloudflare.com/images/) enabled
 - [Headless Render API](https://headless-render-api.com) account
 
 ## Setup
@@ -22,42 +22,49 @@ A Cloudflare Worker that generates, caches, and serves website screenshots using
 npm install
 ```
 
-Edit `wrangler.toml` with your account-specific values (see Configuration below).
+Edit `wrangler.toml` with your values, then set your secrets:
+
+```bash
+wrangler secret put CLOUDFLARE_API_TOKEN
+wrangler secret put HEADLESS_API_TOKEN
+```
+
+For local development, create a `.dev.vars` file:
+
+```
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+HEADLESS_API_TOKEN=your_headless_api_token
+```
 
 ## Configuration
 
-### Environment variables (wrangler.toml)
+### Environment variables (`wrangler.toml`)
 
 | Variable | Description |
 |---|---|
 | `SITE_BASE_URL` | Base URL of the site to screenshot |
-| `SCREENSHOT_BASE_URL` | This worker's production URL (for self-referencing routes) |
 | `IMAGE_URL` | Cloudflare Images delivery URL |
 | `CLOUDFLARE_API_URL` | Cloudflare Images API endpoint |
 | `HEADLESS_API_URL` | Headless Render API endpoint |
 
 ### Secrets
 
-Set these with `wrangler secret put`:
+| Secret | Description |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Images:Edit permission |
+| `HEADLESS_API_TOKEN` | Headless Render API token |
 
-- `CLOUDFLARE_API_TOKEN` -- Cloudflare API token with Images permissions
-- `HEADLESS_API_TOKEN` -- Headless Render API token
+## API
 
-## Routes
+### `GET /:path`
 
-| Route | Description | Viewport |
-|---|---|---|
-| `GET /preview/:slug/:page?` | Mobile preview screenshot | 440x880 @2x |
-| `GET /screenshot/:slug/:page?` | Screenshot with device frame | 440x875 @2x |
-| `GET /opengraph/:slug/:page?` | OpenGraph image (1200x630) | 1200x630 |
-| `GET /theme-preview/:slug` | Small theme thumbnail | 78x60 @2x |
-| `GET /linktree-preview/:slug` | Linktree page screenshot | 440x880 @2x |
-
-### Query parameters
+Returns a JPEG screenshot of `SITE_BASE_URL/:path`.
 
 | Parameter | Default | Description |
 |---|---|---|
 | `invalidate` | `false` | Force regenerate the screenshot |
+| `vw` | `1280` | Viewport width for screenshot capture |
+| `vh` | `800` | Viewport height for screenshot capture |
 | `width` | `500` | Delivery width |
 | `height` | -- | Delivery height |
 | `quality` | `80` | JPEG quality |
@@ -76,7 +83,3 @@ npm run dev
 ```bash
 npm run deploy
 ```
-
-## Customization
-
-To add new screenshot routes, edit the `ROUTE_CONFIGS` object in `src/handler.ts`.

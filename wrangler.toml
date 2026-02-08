@@ -1,0 +1,13 @@
+name = "screenshot-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[vars]
+SITE_BASE_URL = "https://example.com"
+IMAGE_URL = "https://imagedelivery.net/<account_hash>"
+CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4/accounts/<account_id>/images/v1"
+HEADLESS_API_URL = "https://service.headless-render-api.com"
