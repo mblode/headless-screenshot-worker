@@ -1,85 +1,86 @@
-# Screenshot Worker
+<div align="center">
 
-A Cloudflare Worker that generates, caches, and serves website screenshots using [Headless Render API](https://headless-render-api.com) and [Cloudflare Images](https://developers.cloudflare.com/images/).
+# Headless Screenshot Worker
 
-## How it works
+**Screenshots your pages on demand, caches them in Cloudflare Images, and serves them back as JPEG**
 
-1. Request comes in (e.g., `GET /about`)
-2. The worker checks Cloudflare Images for a cached screenshot
-3. On cache miss, it takes a screenshot via Headless Render API. Pass `?invalidate=true` to force a fresh screenshot.
-4. The screenshot is uploaded to Cloudflare Images for future requests
-5. The image is returned as JPEG
+Request a path and get a picture of that page, resized and cropped from the query string.
 
-## Prerequisites
+</div>
 
-- Node.js 22+
-- Cloudflare account with [Images](https://developers.cloudflare.com/images/) enabled
-- [Headless Render API](https://headless-render-api.com) account
-
-## Setup
+## Install
 
 ```bash
+git clone https://github.com/mblode/headless-screenshot-worker.git
+cd headless-screenshot-worker
 npm install
 ```
 
-Edit `wrangler.toml` with your values, then set your secrets:
+Needs Node 24 (see `.nvmrc`), a Cloudflare account with [Images](https://developers.cloudflare.com/images/) enabled, and a [Headless Render API](https://headless-render-api.com) account.
+
+Fill in the four `[vars]` in `wrangler.toml`, then set the two secrets and deploy:
 
 ```bash
 wrangler secret put CLOUDFLARE_API_TOKEN
 wrangler secret put HEADLESS_API_TOKEN
+npm run deploy
 ```
 
-For local development, create a `.dev.vars` file:
+## Quickstart
 
-```
-CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
-HEADLESS_API_TOKEN=your_headless_api_token
-```
-
-## Configuration
-
-### Environment variables (`wrangler.toml`)
-
-| Variable | Description |
-|---|---|
-| `SITE_BASE_URL` | Base URL of the site to screenshot |
-| `IMAGE_URL` | Cloudflare Images delivery URL |
-| `CLOUDFLARE_API_URL` | Cloudflare Images API endpoint |
-| `HEADLESS_API_URL` | Headless Render API endpoint |
-
-### Secrets
-
-| Secret | Description |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Images:Edit permission |
-| `HEADLESS_API_TOKEN` | Headless Render API token |
-
-## API
-
-### `GET /:path`
-
-Returns a JPEG screenshot of `SITE_BASE_URL/:path`.
-
-| Parameter | Default | Description |
-|---|---|---|
-| `invalidate` | `false` | Force regenerate the screenshot |
-| `vw` | `1280` | Viewport width for screenshot capture |
-| `vh` | `800` | Viewport height for screenshot capture |
-| `width` | `500` | Delivery width |
-| `height` | -- | Delivery height |
-| `quality` | `80` | JPEG quality |
-| `format` | `auto` | Image format |
-| `fit` | `cover` | Resize fit mode |
-| `gravity` | -- | Crop gravity |
-
-## Development
+Put the same two tokens in a `.dev.vars` file, then run it locally:
 
 ```bash
 npm run dev
+curl "http://localhost:8787/about?width=800&quality=90" -o about.jpg
 ```
 
-## Deploy
+The first request screenshots `SITE_BASE_URL/about` and uploads the result to Cloudflare Images. Every request after that comes from the cache, resized on delivery. Pass `?invalidate=true` to throw the cached copy away and take a fresh one.
 
-```bash
-npm run deploy
-```
+## Parameters
+
+`GET /:path` returns a JPEG of `SITE_BASE_URL/:path`.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `invalidate` | `false` | Delete the cached image and screenshot the page again. |
+| `vw` | `1280` | Viewport width used for capture. |
+| `vh` | `800` | Viewport height used for capture. |
+| `width` | `500` | Delivery width. |
+| `height` | | Delivery height. |
+| `quality` | `80` | JPEG quality. |
+| `format` | `auto` | Delivery format. |
+| `fit` | `cover` | Resize fit mode. |
+| `gravity` | | Crop gravity. |
+
+## Configuration
+
+`[vars]` in `wrangler.toml`:
+
+| Variable | Description |
+|---|---|
+| `SITE_BASE_URL` | Base URL of the site to screenshot. |
+| `IMAGE_URL` | Cloudflare Images delivery URL. |
+| `CLOUDFLARE_API_URL` | Cloudflare Images API endpoint for your account. |
+| `HEADLESS_API_URL` | Headless Render API endpoint. |
+
+Secrets, set with `wrangler secret put` in production and `.dev.vars` locally:
+
+| Secret | Description |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Images:Edit permission. |
+| `HEADLESS_API_TOKEN` | Headless Render API token. |
+
+## Notes
+
+- Responses carry `Cache-Control: public, max-age=86400`, so a CDN or browser in front of the worker holds them for a day.
+- The Cloudflare Images key is the request path with `/` replaced by `--`, plus `.jpeg`, so `/blog/post` is stored as `blog--post.jpeg`.
+- Only `GET` and `HEAD` are answered. Anything else gets a 405, and a request with no path gets a 400.
+
+## License
+
+MIT
+
+---
+
+Crafted by [<img src="https://blode.co/avatar-circle.png" width="20" align="top" />](https://blode.co) [Matthew Blode](https://blode.co)
